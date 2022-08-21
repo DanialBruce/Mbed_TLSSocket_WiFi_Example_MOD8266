@@ -17,7 +17,6 @@
 */
 #include "mbed.h"
 #include "ESP8266Interface.h"
-#include "mbed_trace.h"
 
 
 ESP8266Interface wifi(D8, D2);
@@ -185,7 +184,6 @@ void http_demo(NetworkInterface *net)
 
 int main()
 {
-    mbed_trace_init();
     nsapi_size_or_error_t result;
     SocketAddress a; //buffer to store IP address information
 
