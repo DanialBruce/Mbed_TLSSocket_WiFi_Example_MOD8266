@@ -7,7 +7,14 @@
  *
  */
 
-/* This example is based on Mbed official toturial found here: https://os.mbed.com/docs/mbed-os/v6.15/apis/connectivity-tutorials.html*/
+/* This example is based on Mbed official toturial found here: https://os.mbed.com/docs/mbed-os/v6.15/apis/connectivity-tutorials.html
+*In this simple example, we will establish a secured connection to os.mbed.com on port 443 (https port).
+*
+*
+*
+*
+*
+*/
 #include "mbed.h"
 #include "ESP8266Interface.h"
 #include "mbed_trace.h"
@@ -146,6 +153,11 @@ void scan_demo(WiFiInterface *wifi)
     delete[] ap;
 }
 
+/**@ NOTE!:
+this function is based on simple TCP socket (so it's not secured connection). This demo is not in use for this example. However, 
+*I decided to leave it in the code, just as a referance code for comparisons (http vs https)
+*
+*/
 void http_demo(NetworkInterface *net)
 {
     // Open a socket on the network interface, and create a TCP connection to mbed.org
@@ -170,6 +182,7 @@ void http_demo(NetworkInterface *net)
     socket.close();
 }
 
+
 int main()
 {
     mbed_trace_init();
@@ -180,7 +193,7 @@ int main()
 
     scan_demo(&wifi);
 
-    printf("\r\nConnecting...\r\n");
+    printf("\r\nConnecting to local network...\r\n");
     int ret = wifi.connect("IoT_Test", "MQTT_TLS_TEST_2022", NSAPI_SECURITY_WPA_WPA2);
     if (ret != 0) {
         printf("\r\nConnection error\r\n");
@@ -197,11 +210,14 @@ int main()
     printf("Gateway: %s\r\n", a.get_ip_address());
     printf("RSSI: %d\r\n\r\n", wifi.get_rssi());
 
+    /* This are not in use! Feel free to try them though! */
     //http_demo(&wifi);
-    ThisThread::sleep_for(10s);
     //wifi.disconnect();
-    
+
     printf("\r\nDone\r\n");
+
+    
+    //1. CREAT A SECURE SOCKET 
     TLSSocket *socket = new TLSSocket;
     result = socket->set_root_ca_cert(cert);
     if (result != 0) {
@@ -209,6 +225,7 @@ int main()
         return result;
     }
 
+    //2. ATTACH THE SOCKET TO THE NETWORK INTERFACE (in this case, WiFi)
     result = socket->open(wifi.wifiInterface());
     if (result != 0) {
         printf("Error! socket->open() returned: %d\n", result);
@@ -218,6 +235,7 @@ int main()
     wifi.gethostbyname("os.mbed.com", &addr);
     addr.set_port(443);
     
+    //3. CONNECT THE SOCKET!
     printf("Connecting to os.bed.com on port 443\n");
     result = socket->connect(addr);
     if(result != 0) {
@@ -225,6 +243,8 @@ int main()
         result = socket->connect(addr);
         return result;
     }
+    
+    //Now we are ready to connect to the host!
     char sbuffer[] = "GET / HTTPS/1.1\r\nHost: os.mbed.com\r\n\r\n";
     int scount = socket->send(sbuffer, sizeof sbuffer);
     printf("sent %d [%.*s]\n", scount, strstr(sbuffer, "\r\n") - sbuffer, sbuffer);

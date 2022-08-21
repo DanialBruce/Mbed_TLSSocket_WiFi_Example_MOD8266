@@ -6,6 +6,9 @@
     },
     "target_overrides": {
             "*": {
+            "nsapi.default-wifi-security": "WPA_WPA2",
+            "nsapi.default-wifi-ssid": "\"YOUR_SSID\"",
+            "nsapi.default-wifi-password": "\"YOUR_PASSWORD\"",
             "platform.stdio-baud-rate": 9600,
             "rtos.main-thread-stack-size": 8192
             }
