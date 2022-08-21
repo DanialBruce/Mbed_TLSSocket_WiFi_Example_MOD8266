@@ -2,13 +2,12 @@
     "config": {
         "use-tls-socket": {
         "value" : true
-        },
-        "macros": ["MBEDTLS_SHA1_C=1"],
-        "target_overrides": {
+        }
+    },
+    "target_overrides": {
             "*": {
-                "mbed-trace.enable": 1,
-                "tls-socket.debug-level": 0
+            "platform.stdio-baud-rate": 9600,
+            "rtos.main-thread-stack-size": 8192
             }
         }
-    }
 }
