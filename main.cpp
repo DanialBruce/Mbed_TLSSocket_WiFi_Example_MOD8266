@@ -7,106 +7,117 @@
  *
  */
 
-/* This example is based on Mbed official toturial found here: https://os.mbed.com/docs/mbed-os/v6.15/apis/connectivity-tutorials.html
-*In this simple example, we will establish a secured connection to os.mbed.com on port 443 (https port).
+/**@Introduction:
+*In this version of the example, we will use the mbed-mqtt library to establish a secured connection to a MQTT broker (server)
 *
 *
 *
 *
 *
 */
+#include "MQTTClient.h"
+#include "MQTTConnect.h"
 #include "mbed.h"
 #include "ESP8266Interface.h"
+#include <MQTTClientMbedOs.h>
+#include <cstdint>
+#include <cstdio>
 
+ESP8266Interface wifi(D8, D2);  //Creat a WiFi interface
 
-ESP8266Interface wifi(D8, D2);
-
-// here you add the CA certificate in PEM format. The following PEM chain certificate is from os.mbed.com
-const char cert[] =\
-"-----BEGIN CERTIFICATE-----\n"
-"MIIGfDCCBWSgAwIBAgIQD2nY7yl9rIxwC4SfxN9vczANBgkqhkiG9w0BAQsFADBG\n"
-"MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRUwEwYDVQQLEwxTZXJ2ZXIg\n"
-"Q0EgMUIxDzANBgNVBAMTBkFtYXpvbjAeFw0yMjAzMzEwMDAwMDBaFw0yMzA0Mjky\n"
-"MzU5NTlaMBUxEzARBgNVBAMMCioubWJlZC5jb20wggEiMA0GCSqGSIb3DQEBAQUA\n"
-"A4IBDwAwggEKAoIBAQCp/wBXDP6oTt7dlVgISfqSb6yE3pjuNfKLZ9/vvNW3xoFt\n"
-"dj3Wq7ERbMg1N69Miw5LszCeQDTnoagyMAtUARkuOiylof6H69K4deZXHUaLY7dy\n"
-"uDUx0SfUSawEsAfO2fl6mt8Wk/Nn1z0vERMN8+49/EJsU5rvxNj/MSBcpLDTMuK3\n"
-"4QRcbNHDDSpIzuQ4n+634Q517e/67B3HEBn1CqQ4ZZXT4D1mgVwtYiqkQ/xTZhBi\n"
-"1F0MVXtBdqDc77RL3cv1CS8LffPT9hzunxjegUk+pat2vUIde777IRFMRqVI3E1G\n"
-"P3huXVY1lbrW5tAzF3JPKiEL9wQX28rdZjGB3qS7AgMBAAGjggOVMIIDkTAfBgNV\n"
-"HSMEGDAWgBRZpGYGUqB7lZI8o5QHJ5Z0W/k90DAdBgNVHQ4EFgQUtbfs4ejAo3OB\n"
-"2xJcQyBJimj+fdEwgcMGA1UdEQSBuzCBuIIKKi5tYmVkLmNvbYIQYXBpLmtlaWwu\n"
-"YXJtLmNvbYIKKi5tYmVkLm9yZ4ISKi5hcGkua2VpbC5hcm0uY29tggxrZWlsLmFy\n"
-"bS5jb22CCG1iZWQuY29tghMqLmludGVybmFsLm1iZWQuY29tgg1jb3JlLm1iZWQu\n"
-"Y29tgg4qLmtlaWwuYXJtLmNvbYIIbWJlZC5vcmeCDyouY29yZS5tYmVkLmNvbYIR\n"
-"aW50ZXJuYWwubWJlZC5jb20wDgYDVR0PAQH/BAQDAgWgMB0GA1UdJQQWMBQGCCsG\n"
-"AQUFBwMBBggrBgEFBQcDAjA9BgNVHR8ENjA0MDKgMKAuhixodHRwOi8vY3JsLnNj\n"
-"YTFiLmFtYXpvbnRydXN0LmNvbS9zY2ExYi0xLmNybDATBgNVHSAEDDAKMAgGBmeB\n"
-"DAECATB1BggrBgEFBQcBAQRpMGcwLQYIKwYBBQUHMAGGIWh0dHA6Ly9vY3NwLnNj\n"
-"YTFiLmFtYXpvbnRydXN0LmNvbTA2BggrBgEFBQcwAoYqaHR0cDovL2NydC5zY2Ex\n"
-"Yi5hbWF6b250cnVzdC5jb20vc2NhMWIuY3J0MAwGA1UdEwEB/wQCMAAwggF/Bgor\n"
-"BgEEAdZ5AgQCBIIBbwSCAWsBaQB2AOg+0No+9QY1MudXKLyJa8kD08vREWvs62nh\n"
-"d31tBr1uAAABf91acgIAAAQDAEcwRQIgbqpJMSdFOBkqySj8oUPN5Bshb57uo44T\n"
-"blkZJKw3GYwCIQDEgGnrnLzfeX4BOMhlIroq82LhaBOTHycXNeXYCc0rQAB2ADXP\n"
-"GRu/sWxXvw+tTG1Cy7u2JyAmUeo/4SrvqAPDO9ZMAAABf91acisAAAQDAEcwRQIh\n"
-"AJdDHSLjxb+svixRO3KR/MT4vaUzcvmCHBDtWl5Rq4PlAiA8Wl/3wy1dOtJWUipN\n"
-"fu99x9UzGMWLelWhEDPkOKStIgB3ALNzdwfhhFD4Y4bWBancEQlKeS2xZwwLh9zw\n"
-"Aw55NqWaAAABf91ackMAAAQDAEgwRgIhALOFeln6Ih/+QNuORSvFFHWBUJ2zJvmu\n"
-"b0OWAuvXOFVKAiEAvqJxfU1LZodYzwrxOiqFtaN1yqMmJz5pqigcFBGXCmQwDQYJ\n"
-"KoZIhvcNAQELBQADggEBABZXWIOva9dRjGKCpGOZwP0eV7uX/KrH6Y9aCQpLQn1+\n"
-"CeqpNYLdHZDeAjsrMRYb/gKZ1ea5E989sxuxv+PPu2mzFV3EArhv0iLzNWHvJxeW\n"
-"2vTF5Aq9o3vec0WjrtAWtmk4jJgaXlhz3j4lA7W6f9Zm/epOzyQgiro/jEb7pZti\n"
-"QiexaC9+KW8Uu8aXHMjidwZC1UC0WcUfALLvs/UeQd8YgL4P+7dLJqyGpfFcf5sX\n"
-"GU+1yDb25SQvJzWhhJqhugy7whHEIWDM9CbuONu4J1t6rMMrb9Dd1rs5sMSJqEDf\n"
-"eGfKmmfduw1q70jHdgF1o+N2DZ7erIxAjYB1jKn9nuU=\n"
+// here you add the CA certificate in chain PEM format. The following PEM formatted Root Chain Certificate is from test.mosquitto.org (August, 2022)
+const char cert[] ="-----BEGIN CERTIFICATE-----\n"
+"MIIFPzCCBCegAwIBAgISBLoxKrvgo1IWjviQTuwWeXGAMA0GCSqGSIb3DQEBCwUA\n"
+"MDIxCzAJBgNVBAYTAlVTMRYwFAYDVQQKEw1MZXQncyBFbmNyeXB0MQswCQYDVQQD\n"
+"EwJSMzAeFw0yMjA1MjQwMzU4NDBaFw0yMjA4MjIwMzU4MzlaMB0xGzAZBgNVBAMT\n"
+"EnRlc3QubW9zcXVpdHRvLm9yZzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC\n"
+"ggEBAMVlQixUbp36iRUw1KRGehqqzOA/fqjvYQ/htyherIwrCKMZt6AoDaXTvd8K\n"
+"hwOfKr6V71MXWqq+7sq95FhcMJQXS6jMtrxSqUrhvyXtWcnJe9zN2/C6+CvwamOP\n"
+"cyHHRY8FNakOIs6G8WsdhHxu7D3CtZYJp2a7UhFBo/UdO1kvJGW2ReU0CZWtBZCg\n"
+"wHVsDTI/3hhLWeN1ZVHKyYAifRkd39Owj1ZXFbQyrTAFgxaGjwZ8Z0Vtzgg/5CrB\n"
+"2z8kBkG25ywEtKWiXVNiju0EaApHK1M34ZXo9fTMu+kNLlvsJVpLn0EaRNCKJgGm\n"
+"OJezsEqo3e3/ylH67/EwDNf8NZcCAwEAAaOCAmIwggJeMA4GA1UdDwEB/wQEAwIF\n"
+"oDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDAYDVR0TAQH/BAIwADAd\n"
+"BgNVHQ4EFgQUBkhYCbv9JWU7LSA4P4rRZbi+nWAwHwYDVR0jBBgwFoAUFC6zF7dY\n"
+"VsuuUAlA5h+vnYsUwsYwVQYIKwYBBQUHAQEESTBHMCEGCCsGAQUFBzABhhVodHRw\n"
+"Oi8vcjMuby5sZW5jci5vcmcwIgYIKwYBBQUHMAKGFmh0dHA6Ly9yMy5pLmxlbmNy\n"
+"Lm9yZy8wMgYDVR0RBCswKYISdGVzdC5tb3NxdWl0dG8ub3JnghN0ZXN0Ni5tb3Nx\n"
+"dWl0dG8ub3JnMEwGA1UdIARFMEMwCAYGZ4EMAQIBMDcGCysGAQQBgt8TAQEBMCgw\n"
+"JgYIKwYBBQUHAgEWGmh0dHA6Ly9jcHMubGV0c2VuY3J5cHQub3JnMIIBBAYKKwYB\n"
+"BAHWeQIEAgSB9QSB8gDwAHYAKXm+8J45OSHwVnOfY6V35b5XfZxgCvj5TV0mXCVd\n"
+"x4QAAAGA9G5z0QAABAMARzBFAiBRtFSyGzj960BhRCsWR6fHHqFDZKEnqZYdOnXd\n"
+"pPKnJQIhAJYxSk81MYMm6sPHMHEk1qzLHox7AveNp0+q+no5FVKWAHYAQcjKsd8i\n"
+"RkoQxqE6CUKHXk4xixsD6+tLx2jwkGKWBvYAAAGA9G50BAAABAMARzBFAiEAn1oK\n"
+"qeze7kcgsvY4ArRDhQYpLBC/eDLdj740XFrswaUCIBPqE7OeMV4whhxB9JTIlfGh\n"
+"VjbMEvXYUPv2Vmq8e0saMA0GCSqGSIb3DQEBCwUAA4IBAQB7reTupf23LS0TowCf\n"
+"N5VMFXjoBFyvPzTNMlc2+ywIMrNuSz9mCKQIOzXl86l2KodF3chw4H7X1DYY5wZu\n"
+"HZoZem8IRZUwIJBA4n93Jd8lMZjZnGSYxWcALfTORK06znDtQFEYm8dUPwEqMGR3\n"
+"/ac4YDphqYSw1K3oVslgeXiMJ53CW6v/nB1QPs0Lhd7iFL0jGndeYlclxst1Ybz5\n"
+"ntFl1FW0kKVZ7tyoAx2c6cKLgwRof7XzEL+N93fBJIJs4rWhZHuqYoSNxReJ2UIf\n"
+"VjJ7rDHrmW46WYPmzQFqIFYepVRAJlqVEaDmUB97yhG3RZgXv9CPN5PFu3+YSq0N\n"
+"IyVR\n"
 "-----END CERTIFICATE-----\n"
 "-----BEGIN CERTIFICATE-----\n"
-"MIIESTCCAzGgAwIBAgITBntQXCplJ7wevi2i0ZmY7bibLDANBgkqhkiG9w0BAQsF\n"
-"ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6\n"
-"b24gUm9vdCBDQSAxMB4XDTE1MTAyMTIyMjQzNFoXDTQwMTAyMTIyMjQzNFowRjEL\n"
-"MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEVMBMGA1UECxMMU2VydmVyIENB\n"
-"IDFCMQ8wDQYDVQQDEwZBbWF6b24wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\n"
-"AoIBAQDCThZn3c68asg3Wuw6MLAd5tES6BIoSMzoKcG5blPVo+sDORrMd4f2AbnZ\n"
-"cMzPa43j4wNxhplty6aUKk4T1qe9BOwKFjwK6zmxxLVYo7bHViXsPlJ6qOMpFge5\n"
-"blDP+18x+B26A0piiQOuPkfyDyeR4xQghfj66Yo19V+emU3nazfvpFA+ROz6WoVm\n"
-"B5x+F2pV8xeKNR7u6azDdU5YVX1TawprmxRC1+WsAYmz6qP+z8ArDITC2FMVy2fw\n"
-"0IjKOtEXc/VfmtTFch5+AfGYMGMqqvJ6LcXiAhqG5TI+Dr0RtM88k+8XUBCeQ8IG\n"
-"KuANaL7TiItKZYxK1MMuTJtV9IblAgMBAAGjggE7MIIBNzASBgNVHRMBAf8ECDAG\n"
-"AQH/AgEAMA4GA1UdDwEB/wQEAwIBhjAdBgNVHQ4EFgQUWaRmBlKge5WSPKOUByeW\n"
-"dFv5PdAwHwYDVR0jBBgwFoAUhBjMhTTsvAyUlC4IWZzHshBOCggwewYIKwYBBQUH\n"
-"AQEEbzBtMC8GCCsGAQUFBzABhiNodHRwOi8vb2NzcC5yb290Y2ExLmFtYXpvbnRy\n"
-"dXN0LmNvbTA6BggrBgEFBQcwAoYuaHR0cDovL2NybC5yb290Y2ExLmFtYXpvbnRy\n"
-"dXN0LmNvbS9yb290Y2ExLmNlcjA/BgNVHR8EODA2MDSgMqAwhi5odHRwOi8vY3Js\n"
-"LnJvb3RjYTEuYW1hem9udHJ1c3QuY29tL3Jvb3RjYTEuY3JsMBMGA1UdIAQMMAow\n"
-"CAYGZ4EMAQIBMA0GCSqGSIb3DQEBCwUAA4IBAQAfsaEKwn17DjAbi/Die0etn+PE\n"
-"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\n"
+"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\n"
+"nLRbwHOoq7hHwg==\n"
 "-----END CERTIFICATE-----\n"
 "-----BEGIN CERTIFICATE-----\n"
-"MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF\n"
-"ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6\n"
-"b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL\n"
-"MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJv\n"
-"b3QgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJ4gHHKeNXj\n"
-"ca9HgFB0fW7Y14h29Jlo91ghYPl0hAEvrAIthtOgQ3pOsqTQNroBvo3bSMgHFzZM\n"
-"9O6II8c+6zf1tRn4SWiw3te5djgdYZ6k/oI2peVKVuRF4fn9tBb6dNqcmzU5L/qw\n"
-"IFAGbHrQgLKm+a/sRxmPUDgH3KKHOVj4utWp+UhnMJbulHheb4mjUcAwhmahRWa6\n"
-"VOujw5H5SNz/0egwLX0tdHA114gk957EWW67c4cX8jJGKLhD+rcdqsq08p8kDi1L\n"
-"93FcXmn/6pUCyziKrlA4b9v7LWIbxcceVOF34GfID5yHI9Y/QCB/IIDEgEw+OyQm\n"
-"jgSubJrIqg0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC\n"
-"AYYwHQYDVR0OBBYEFIQYzIU07LwMlJQuCFmcx7IQTgoIMA0GCSqGSIb3DQEBCwUA\n"
-"A4IBAQCY8jdaQZChGsV2USggNiMOruYou6r4lK5IpDB/G/wkjUu0yKGX9rbxenDI\n"
-"U5PMCCjjmCXPI6T53iHTfIUJrU6adTrCC2qJeHZERxhlbI1Bjjt/msv0tadQ1wUs\n"
-"N+gDS63pYaACbvXy8MWy7Vu33PqUXHeeE6V/Uq2V8viTO96LXFvKWlJbYK8U90vv\n"
-"o/ufQJVtMVT8QtPHRh8jrdkPSHCa2XV4cdFyQzR1bldZwgJcJmApzyMZFo6IQ6XU\n"
-"5MsI+yMRQ+hDKXJioaldXgjUkK642M4UwtBV8ob2xJNDd2ZhwLnoQdeXeGADbkpy\n"
-"rqXRfboQnoZsG4q5WTP468SQvvG5\n"
+"MIIFYDCCBEigAwIBAgIQQAF3ITfU6UK47naqPGQKtzANBgkqhkiG9w0BAQsFADA/\n"
+"MSQwIgYDVQQKExtEaWdpdGFsIFNpZ25hdHVyZSBUcnVzdCBDby4xFzAVBgNVBAMT\n"
+"DkRTVCBSb290IENBIFgzMB4XDTIxMDEyMDE5MTQwM1oXDTI0MDkzMDE4MTQwM1ow\n"
+"TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh\n"
+"cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwggIiMA0GCSqGSIb3DQEB\n"
+"AQUAA4ICDwAwggIKAoICAQCt6CRz9BQ385ueK1coHIe+3LffOJCMbjzmV6B493XC\n"
+"ov71am72AE8o295ohmxEk7axY/0UEmu/H9LqMZshftEzPLpI9d1537O4/xLxIZpL\n"
+"wYqGcWlKZmZsj348cL+tKSIG8+TA5oCu4kuPt5l+lAOf00eXfJlII1PoOK5PCm+D\n"
+"LtFJV4yAdLbaL9A4jXsDcCEbdfIwPPqPrt3aY6vrFk/CjhFLfs8L6P+1dy70sntK\n"
+"4EwSJQxwjQMpoOFTJOwT2e4ZvxCzSow/iaNhUd6shweU9GNx7C7ib1uYgeGJXDR5\n"
+"bHbvO5BieebbpJovJsXQEOEO3tkQjhb7t/eo98flAgeYjzYIlefiN5YNNnWe+w5y\n"
+"sR2bvAP5SQXYgd0FtCrWQemsAXaVCg/Y39W9Eh81LygXbNKYwagJZHduRze6zqxZ\n"
+"Xmidf3LWicUGQSk+WT7dJvUkyRGnWqNMQB9GoZm1pzpRboY7nn1ypxIFeFntPlF4\n"
+"FQsDj43QLwWyPntKHEtzBRL8xurgUBN8Q5N0s8p0544fAQjQMNRbcTa0B7rBMDBc\n"
+"SLeCO5imfWCKoqMpgsy6vYMEG6KDA0Gh1gXxG8K28Kh8hjtGqEgqiNx2mna/H2ql\n"
+"PRmP6zjzZN7IKw0KKP/32+IVQtQi0Cdd4Xn+GOdwiK1O5tmLOsbdJ1Fu/7xk9TND\n"
+"TwIDAQABo4IBRjCCAUIwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYw\n"
+"SwYIKwYBBQUHAQEEPzA9MDsGCCsGAQUFBzAChi9odHRwOi8vYXBwcy5pZGVudHJ1\n"
+"c3QuY29tL3Jvb3RzL2RzdHJvb3RjYXgzLnA3YzAfBgNVHSMEGDAWgBTEp7Gkeyxx\n"
+"+tvhS5B1/8QVYIWJEDBUBgNVHSAETTBLMAgGBmeBDAECATA/BgsrBgEEAYLfEwEB\n"
+"ATAwMC4GCCsGAQUFBwIBFiJodHRwOi8vY3BzLnJvb3QteDEubGV0c2VuY3J5cHQu\n"
+"b3JnMDwGA1UdHwQ1MDMwMaAvoC2GK2h0dHA6Ly9jcmwuaWRlbnRydXN0LmNvbS9E\n"
+"U1RST09UQ0FYM0NSTC5jcmwwHQYDVR0OBBYEFHm0WeZ7tuXkAXOACIjIGlj26Ztu\n"
+"MA0GCSqGSIb3DQEBCwUAA4IBAQAKcwBslm7/DlLQrt2M51oGrS+o44+/yQoDFVDC\n"
+"5WxCu2+b9LRPwkSICHXM6webFGJueN7sJ7o5XPWioW5WlHAQU7G75K/QosMrAdSW\n"
+"9MUgNTP52GE24HGNtLi1qoJFlcDyqSMo59ahy2cI2qBDLKobkx/J3vWraV0T9VuG\n"
+"WCLKTVXkcGdtwlfFRjlBz4pYg1htmf5X6DYO8A4jqv2Il9DjXA6USbW1FzXSLr9O\n"
+"he8Y4IWS6wY7bCkjCWDcRQJMEhg76fsO3txE+FiYruq9RUWhiF1myv4Q6W+CyBFC\n"
+"Dfvp7OOGAN6dEOM4+qR9sdjoSYKEBpsr6GtPAQw4dy753ec5\n"
 "-----END CERTIFICATE-----";
-
-
 
 
 const char *sec2str(nsapi_security_t sec)
@@ -128,7 +139,7 @@ const char *sec2str(nsapi_security_t sec)
     }
 }
 
-void scan_demo(WiFiInterface *wifi)
+void scan_for_AP(WiFiInterface *wifi)
 {
     WiFiAccessPoint *ap;
 
@@ -151,106 +162,131 @@ void scan_demo(WiFiInterface *wifi)
 
     delete[] ap;
 }
-
-/**@ NOTE!:
-this function is based on simple TCP socket (so it's not secured connection). This demo is not in use for this example. However, 
-*I decided to leave it in the code, just as a referance code for comparisons (http vs https)
-*
-*/
-void http_demo(NetworkInterface *net)
+static void messageArrived(MQTT::MessageData& md)
 {
-    // Open a socket on the network interface, and create a TCP connection to mbed.org
-    TCPSocket socket;
-    socket.open(net);
-
-    SocketAddress tmp_IP_addr_Buff;
-    net->gethostbyname("ifconfig.io", &tmp_IP_addr_Buff);
-    tmp_IP_addr_Buff.set_port(80);
-    socket.connect(tmp_IP_addr_Buff);
-    // Send a simple http request
-    char sbuffer[] = "GET / HTTP/1.1\r\nHost: ifconfig.io\r\n\r\n";
-    int scount = socket.send(sbuffer, sizeof sbuffer);
-    printf("sent %d [%.*s]\n", scount, strstr(sbuffer, "\r\n") - sbuffer, sbuffer);
-
-    // Recieve a simple http response and print out the response line
-    char rbuffer[64];
-    int rcount = socket.recv(rbuffer, sizeof rbuffer);
-    printf("recv %d [%.*s]\n", rcount, strstr(rbuffer, "\r\n") - rbuffer, rbuffer);
-
-    // Close the socket to return its memory and bring down the network interface
-    socket.close();
+    MQTT::Message &message = md.message;
+    printf("Message arrived: qos %d, retained %d, dup %d, packetid %d\r\n", message.qos, message.retained, message.dup, message.id);
+    printf("Payload %.*s\r\n", message.payloadlen, (char*)message.payload);
 }
 
 
-int main()
-{
-    nsapi_size_or_error_t result;
-    SocketAddress a; //buffer to store IP address information
 
-    printf("WiFi example\r\n\r\n");
+int connect_to_wlan(SocketAddress &addr){
+    printf("Searching for WiFi APs\r\n\r\n");
 
-    scan_demo(&wifi);
+    scan_for_AP(&wifi);
 
     printf("\r\nConnecting to local network...\r\n");
     int ret = wifi.connect("IoT_Test", "MQTT_TLS_TEST_2022", NSAPI_SECURITY_WPA_WPA2);
     if (ret != 0) {
         printf("\r\nConnection error\r\n");
-        return -1;
+        return ret;
     }
 
     printf("Success\r\n\r\n");
     printf("MAC: %s\r\n", wifi.get_mac_address());
-    wifi.get_ip_address(&a);
-    printf("IP: %s\r\n", a.get_ip_address());
-    wifi.get_netmask(&a);
-    printf("Netmask: %s\r\n", a.get_ip_address());
-    wifi.get_gateway(&a);
-    printf("Gateway: %s\r\n", a.get_ip_address());
+    wifi.get_ip_address(&addr);
+    printf("IP: %s\r\n", addr.get_ip_address());
+    wifi.get_netmask(&addr);
+    printf("Netmask: %s\r\n", addr.get_ip_address());
+    wifi.get_gateway(&addr);
+    printf("Gateway: %s\r\n", addr.get_ip_address());
     printf("RSSI: %d\r\n\r\n", wifi.get_rssi());
 
-    /* This are not in use! Feel free to try them though! */
+    /* These are not in use! Feel free to try them though! */
     //http_demo(&wifi);
     //wifi.disconnect();
-
     printf("\r\nDone\r\n");
+    return ret;
+}
 
-    
-    //1. CREAT A SECURE SOCKET 
-    TLSSocket *socket = new TLSSocket;
-    result = socket->set_root_ca_cert(cert);
-    if (result != 0) {
-        printf("Error: socket->set_root_ca_cert() returned %d\n", result);
-        return result;
+
+
+nsapi_size_or_error_t connect_to_broker(nsapi_size_or_error_t &res, MQTTClient &client, MQTTPacket_connectData data){
+    if ((res = client.connect(data) != 0)) {
+        printf("ERROR: did not connect to broker. code: %d\n", res);
+        return res;
     }
 
-    //2. ATTACH THE SOCKET TO THE NETWORK INTERFACE (in this case, WiFi)
-    result = socket->open(wifi.wifiInterface());
-    if (result != 0) {
-        printf("Error! socket->open() returned: %d\n", result);
-        return result;
+    printf("Connected to broker.\n");
+    return res;
+}
+
+
+nsapi_size_or_error_t TLSSocket_connect(NetworkInterface *net, TLSSocket *soc, nsapi_size_or_error_t &res, const char* hostname = "test.mosquitto.org", uint16_t port = 8886){
+    res = soc->set_root_ca_cert(cert);
+    if (res != 0) {
+        printf("Error: socket->set_root_ca_cert() returned %d\n", res);
+        return res;
+    }
+
+    // ATTACH THE SOCKET TO THE NETWORK INTERFACE (in this case, WiFi)
+    res = soc->open((*net).wifiInterface());
+    if (res != 0) {
+        printf("Error! socket->open() returned: %d\n", res);
+        return res;
     }
     SocketAddress addr;
-    wifi.gethostbyname("os.mbed.com", &addr);
-    addr.set_port(443);
+    wifi.gethostbyname(hostname, &addr);
+    addr.set_port(port);
     
-    //3. CONNECT THE SOCKET!
-    printf("Connecting to os.bed.com on port 443\n");
-    result = socket->connect(addr);
-    if(result != 0) {
-        printf("Error! socket->connect() returned: %d\n", result);
-        result = socket->connect(addr);
+    // CONNECT THE SOCKET TO REMOTE HOST!
+    printf("Connecting to %s on port %d\n", hostname, port);
+    res = soc->connect(addr);
+    if(res != 0) {
+        printf("Error! socket->connect() returned: %d\n", res);
+        res = soc->connect(addr);
+        return res;
+    }
+    else{
+        printf("Secure connection to the host established!\n");
+    }
+    return res;
+}
+
+
+int main()
+{
+    //CREAT A SECURE SOCKET
+    TLSSocket *socket = new TLSSocket;
+    //buffer for NSAPI error messages 
+    nsapi_size_or_error_t result;
+    //buffer to store IP address information
+    SocketAddress a;
+    
+    MQTTPacket_connectData mqtt_conn_data = MQTTPacket_connectData_initializer;
+    mqtt_conn_data.MQTTVersion = 3;
+    mqtt_conn_data.clientID.cstring = "2DOPghqUTR3WT4561UUIG_sdf_23ZQWE";
+    MQTTClient mqtt_client(socket);
+    
+    connect_to_wlan(a); 
+    TLSSocket_connect(wifi.wifiInterface(), socket, result);
+    connect_to_broker(result, mqtt_client, mqtt_conn_data);
+
+    MQTT::Message message;
+    char buf[100];
+    sprintf(buf, "<!-- WRITE YOUR MESSAGE HERE --!>\r\n");
+    message.qos = MQTT::QOS0;
+    message.retained = false;
+    message.dup = false;
+    message.payload = (void*)buf;
+    message.payloadlen = strlen(buf)+1;
+
+    //Subscribing to a topic 
+    result = mqtt_client.subscribe("ashkeTemsah", MQTT::QOS0, messageArrived);
+    if (result != 0) {
+    printf("Failed to subscribe to the given topic. Error: %d\n", result);
         return result;
     }
     
-    //Now we are ready to connect to the host!
-    char sbuffer[] = "GET / HTTPS/1.1\r\nHost: os.mbed.com\r\n\r\n";
-    int scount = socket->send(sbuffer, sizeof sbuffer);
-    printf("sent %d [%.*s]\n", scount, strstr(sbuffer, "\r\n") - sbuffer, sbuffer);
-
-    // Recieve a simple http response and print out the response line
-    char rbuffer[64];
-    int rcount = socket->recv(rbuffer, sizeof rbuffer);
-    printf("recv %d [%.*s]\n", rcount, strstr(rbuffer, "\r\n") - rbuffer, rbuffer);
+    while(true){
+        printf("Published a message.\n");
+        result = mqtt_client.publish("ashkeTemsah", message);
+        if (result != 0) {
+            printf("Failed to publish to the given topic. Error: %d\n", result);
+        }
+        mqtt_client.yield(2000); //publish ever 2 second
+    }
 }
 
 

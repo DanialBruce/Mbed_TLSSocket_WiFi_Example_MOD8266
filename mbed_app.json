@@ -10,7 +10,9 @@
             "nsapi.default-wifi-ssid": "\"YOUR_SSID\"",
             "nsapi.default-wifi-password": "\"YOUR_PASSWORD\"",
             "platform.stdio-baud-rate": 9600,
-            "rtos.main-thread-stack-size": 8192
+            "rtos.main-thread-stack-size": 8192,
+            "mbed-mqtt.max-connections": "5",
+            "mbed-mqtt.max-packet-size": "1024"
             }
         }
 }
