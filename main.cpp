@@ -8,7 +8,7 @@
  */
 
 /**@Introduction:
-*In this version of the example, we will use the mbed-mqtt library to establish a secured connection to a MQTT broker (server)
+*In this version of TLS example, we will use the 'mbed-mqtt' library to *establish a secured connection to a remote MQTT broker (server).
 *
 *
 *
@@ -23,7 +23,26 @@
 #include <cstdint>
 #include <cstdio>
 
-ESP8266Interface wifi(D8, D2);  //Creat a WiFi interface
+/**@NOTES!
+*
+* The MOD-WiFi-ESP8266 is tested only with K64F, NUCLEO-L432KC and
+* NUCLEO-L476RG platforms by the author. There are few technical mysteries
+* and issues that have been encountered by the author. Some noteable ones are:
+*
+*    - Used ESP WiFi module will only works with UART1 interface, with pins D8
+*      (PA_9) and D2(PA_10) with NUCLEO-L476RG out of the box, if no changes
+*      are made to PeripheralPins.C and the jumpers on the board.
+*
+*    - NUCLEO-L432KC cannot establish TLS connection.
+*      (Problem seems to be memory constraints with L432KC. 64KB of SRAM is not
+*       sufficient enough memory!)
+*
+*    - Do not use "esp8266.built-in-dns" parameter in mbed_app.json file. It           may cause some issues with this example.
+*
+*
+*
+*/
+ESP8266Interface wifi(MBED_CONF_APP_ESP_TX_PIN, MBED_CONF_APP_ESP_RX_PIN);  //Creat a WiFi interface
 
 // here you add the CA certificate in chain PEM format. The following PEM formatted Root Chain Certificate is from test.mosquitto.org (August, 2022)
 const char cert[] ="-----BEGIN CERTIFICATE-----\n"
@@ -177,7 +196,7 @@ int connect_to_wlan(SocketAddress &addr){
     scan_for_AP(&wifi);
 
     printf("\r\nConnecting to local network...\r\n");
-    int ret = wifi.connect("IoT_Test", "MQTT_TLS_TEST_2022", NSAPI_SECURITY_WPA_WPA2);
+    int ret = wifi.connect(MBED_CONF_APP_WIFI_SSID, MBED_CONF_APP_WIFI_PASSWORD, NSAPI_SECURITY_WPA_WPA2);
     if (ret != 0) {
         printf("\r\nConnection error\r\n");
         return ret;
@@ -256,7 +275,7 @@ int main()
     
     MQTTPacket_connectData mqtt_conn_data = MQTTPacket_connectData_initializer;
     mqtt_conn_data.MQTTVersion = 3;
-    mqtt_conn_data.clientID.cstring = "2DOPghqUTR3WT4561UUIG_sdf_23ZQWE";
+    mqtt_conn_data.clientID.cstring = MBED_CONF_APP_MQTT_ID;
     MQTTClient mqtt_client(socket);
     
     connect_to_wlan(a); 
@@ -273,7 +292,7 @@ int main()
     message.payloadlen = strlen(buf)+1;
 
     //Subscribing to a topic 
-    result = mqtt_client.subscribe("ashkeTemsah", MQTT::QOS0, messageArrived);
+    result = mqtt_client.subscribe(MBED_CONF_APP_MQTT_TOPIC, MQTT::QOS0, messageArrived);
     if (result != 0) {
     printf("Failed to subscribe to the given topic. Error: %d\n", result);
         return result;
@@ -281,7 +300,7 @@ int main()
     
     while(true){
         printf("Published a message.\n");
-        result = mqtt_client.publish("ashkeTemsah", message);
+        result = mqtt_client.publish(MBED_CONF_APP_MQTT_TOPIC, message);
         if (result != 0) {
             printf("Failed to publish to the given topic. Error: %d\n", result);
         }
